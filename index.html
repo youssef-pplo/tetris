@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="description" content="Ultimate Tetris AI. Train a neural network to play Tetris or play yourself!">
+    <meta name="author" content="youssef pplo">
+    <meta name="keywords" content="tetris, neural network, AI, machine learning, game, browser game">
+    <meta name="theme-color" content="#d32f2f">
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Tetris AI Ultimate">
+    <meta property="og:description" content="Train a neural network to play Tetris directly in your browser.">
+    <meta property="og:url" content="https://pplo.dev">
+    <meta property="og:site_name" content="Tetris AI Ultimate">
+    
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Tetris AI Ultimate">
+    <meta name="twitter:description" content="Train a neural network to play Tetris directly in your browser.">
+    
+    <title>Tetris AI Ultimate</title>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="hud">
+        <div class="hud-label">SCORE</div>
+        <div class="hud-val" id="score-display">0</div>
+        <div class="hud-label" style="margin-top:10px;">LINES</div>
+        <div class="hud-val" id="lines-display">0</div>
+        <div class="hud-label" style="margin-top:10px;">LEVEL</div>
+        <div class="hud-val" id="level-display">1</div>
+    </div>
+    
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- Mobile Controls -->
+    <div id="mobile-controls">
+        <div class="control-group">
+            <div class="d-pad-btn" onpointerdown="handleInput('ArrowLeft')">←</div>
+            <div class="d-pad-btn" onpointerdown="handleInput('ArrowDown')">↓</div>
+            <div class="d-pad-btn" onpointerdown="handleInput('ArrowRight')">→</div>
+        </div>
+        <div class="control-group">
+            <div class="d-pad-btn btn-big" onpointerdown="handleInput('ArrowUp')">↻</div>
+        </div>
+    </div>
+
+    <!-- AI Dashboard -->
+    <div id="ai-dashboard">
+        <h3>TETRIS BRAIN</h3>
+        <div class="status-text" id="dash-status">Waiting to start...</div>
+        <div class="stat-row"><span>Generation:</span> <span id="dash-gen" class="stat-value">0</span></div>
+        <div class="stat-row"><span>Alive:</span> <span id="dash-alive" class="stat-value">0</span></div>
+        <div class="stat-row"><span>Best Score:</span> <span id="dash-best" class="stat-value">0</span></div>
+        
+        <div class="strategy-section">
+            <div class="strategy-header">Best Agent Strategy (Weights)</div>
+            <div class="strategy-row"><span>Avoid Height:</span> <span id="w-height" class="strategy-val">0.00</span></div>
+            <div class="strategy-row"><span>Clear Lines:</span> <span id="w-lines" class="strategy-val">0.00</span></div>
+            <div class="strategy-row"><span>Avoid Holes:</span> <span id="w-holes" class="strategy-val">0.00</span></div>
+            <div class="strategy-row"><span>Flatness:</span> <span id="w-bump" class="strategy-val">0.00</span></div>
+        </div>
+        
+        <div class="slider-container">
+            <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                <span>Training Speed</span><span id="speed-val">1x</span>
+            </div>
+            <input type="range" id="speed-slider" min="0.1" max="50" step="0.1" value="1" oninput="updateSpeed(this.value)">
+        </div>
+        
+        <div style="margin-top: 15px; display: grid; gap: 5px;">
+             <button class="btn btn-small btn-blue" onclick="showAiConfig()">AI Config</button>
+             <button class="btn btn-small btn-gray" onclick="game.endGame()">Exit Training</button>
+        </div>
+    </div>
+
+    <div id="ui-layer">
+        <!-- Start Screen -->
+        <div id="start-screen" class="message-box" style="display: block;">
+            <h1>TETRIS AI</h1>
+            <p>Stack blocks or train a neural network!</p>
+            <div class="btn-group">
+                <button class="btn" onclick="startGame('normal')">Play Game</button>
+                <button class="btn btn-blue" onclick="startGame('ai')">Train AI</button>
+                <button class="btn btn-gray" onclick="showSettings()">Settings</button>
+            </div>
+            <div class="credits">Created by <a href="https://pplo.dev" target="_blank" rel="noopener noreferrer">youssef pplo</a></div>
+        </div>
+
+        <!-- Global Settings -->
+        <div id="settings-modal" class="message-box">
+            <h3>Settings</h3>
+            <p style="font-size: 0.9rem;">Graphics mode affects glow and particles.</p>
+            <div class="btn-group">
+                <button class="btn btn-blue" onclick="toggleGraphics()" id="gfx-btn">Graphics: HIGH</button>
+                <button class="btn btn-gray" onclick="closeSettings()">Back</button>
+            </div>
+        </div>
+
+        <!-- AI Config -->
+        <div id="ai-config-modal" class="message-box">
+            <h3>AI Logic</h3>
+            <div class="setting-group">
+                <label>Population Size (20 - 500)</label>
+                <input type="number" id="cfg-pop" value="50" min="10" max="500">
+            </div>
+            <div class="setting-group">
+                <label>Mutation Rate (0.01 - 0.5)</label>
+                <input type="number" id="cfg-mut" value="0.1" step="0.01" min="0.01" max="0.5">
+            </div>
+            <div class="btn-group">
+                <button class="btn" onclick="saveAiSettings()">Apply</button>
+                <button class="btn btn-gray" onclick="closeAiConfig()">Cancel</button>
+            </div>
+        </div>
+
+        <!-- Game Over -->
+        <div id="game-over-screen" class="message-box">
+            <h1>Game Over</h1>
+            <div style="font-size: 3rem; font-weight: bold; color: var(--secondary); margin: 10px 0;" id="final-score">0</div>
+            <div style="color: #888; margin-bottom: 20px;">Lines Cleared: <span id="final-lines">0</span></div>
+            <div class="btn-group">
+                <button class="btn" onclick="game.reset()">Try Again</button>
+                <button class="btn btn-blue" onclick="showMainMenu()">Main Menu</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
+
